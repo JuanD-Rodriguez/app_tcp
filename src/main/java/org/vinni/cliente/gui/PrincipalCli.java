@@ -20,9 +20,6 @@ public class PrincipalCli extends javax.swing.JFrame {
     private DefaultListModel clientListModel;
     private JList clientList;
 
-    /**
-     * Creates new form Principal1
-     */
     public PrincipalCli() {
         initComponents();
     }
@@ -151,7 +148,7 @@ public class PrincipalCli extends javax.swing.JFrame {
 
                             mensajesTxt.append("Conectado al servidor como " + clientName + "\n");
 
-                            // Iniciar un hilo para leer los mensajes del servidor
+                        
                             new Thread(new Runnable() {
                                 public void run() {
                                     String fromServer;
@@ -169,12 +166,12 @@ public class PrincipalCli extends javax.swing.JFrame {
                                 }
                             }).start();
 
-                            break; // Salir del bucle si la conexión fue exitosa
+                            break;
                         }
                     } catch (IOException e) {
                         mensajesTxt.append("Error conectando al servidor. Intentando de nuevo en 5 segundos...\n");
                         try {
-                            Thread.sleep(5000); // Esperar 5 segundos antes de intentar reconectar
+                            Thread.sleep(5000); 
                         } catch (InterruptedException ex) {
                             Thread.currentThread().interrupt();
                         }

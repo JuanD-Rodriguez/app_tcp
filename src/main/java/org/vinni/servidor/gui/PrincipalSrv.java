@@ -20,9 +20,6 @@ public class PrincipalSrv extends javax.swing.JFrame {
     private DefaultListModel clientListModel;
     private JList clientList;
 
-    /**
-     * Creates new form Principal1
-     */
     public PrincipalSrv() {
         initComponents();
     }
@@ -35,8 +32,8 @@ public class PrincipalSrv extends javax.swing.JFrame {
         jLabel1 = new javax.swing.JLabel();
         mensajesTxt = new JTextArea();
         jScrollPane1 = new javax.swing.JScrollPane();
-        clientListModel = new DefaultListModel(); // Eliminado el operador diamante
-        clientList = new JList(clientListModel);  // Eliminado el operador diamante
+        clientListModel = new DefaultListModel(); 
+        clientList = new JList(clientListModel);  
         JScrollPane clientScrollPane = new JScrollPane(clientList);
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
@@ -124,8 +121,7 @@ public class PrincipalSrv extends javax.swing.JFrame {
             try {
                 this.in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
                 this.out = new PrintWriter(clientSocket.getOutputStream(), true);
-                this.clientName = in.readLine(); // Asume que el primer mensaje del cliente es su nombre
-                
+                this.clientName = in.readLine(); 
                 SwingUtilities.invokeLater(new Runnable() {
                     public void run() {
                         clientListModel.addElement(clientName);
@@ -146,19 +142,19 @@ public class PrincipalSrv extends javax.swing.JFrame {
                 String message;
                 while ((message = in.readLine()) != null) {
                     if (message.startsWith("TO:")) {
-                        // Extraer el destinatario y el mensaje
+                      
                         final String[] parts = message.split(":", 3);
                         final String targetClient = parts[1];
                         final String actualMessage = parts[2];
                         
-                        // Mostrar el mensaje en el servidor
+                     
                         SwingUtilities.invokeLater(new Runnable() {
                             public void run() {
                                 mensajesTxt.append(clientName + " -> " + targetClient + ": " + actualMessage + "\n");
                             }
                         });
                         
-                        // Enviar el mensaje al cliente destinatario
+                    
                         sendMessageToClient(clientName + ": " + actualMessage, targetClient);
                     } else {
                         // Mostrar cualquier otro mensaje directamente en el servidor

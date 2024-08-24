@@ -53,7 +53,7 @@ public class cliente extends javax.swing.JFrame {
 
         jLabel1.setFont(new java.awt.Font("Tahoma", 1, 14));
         jLabel1.setForeground(new java.awt.Color(204, 0, 0));
-        jLabel1.setText("CLIENTE TCP : DFRACK");
+        jLabel1.setText("CLIENTE");
         getContentPane().add(jLabel1);
         jLabel1.setBounds(110, 10, 250, 17);
 
@@ -75,7 +75,7 @@ public class cliente extends javax.swing.JFrame {
         jLabel2.setBounds(20, 90, 120, 30);
 
         btEnviar.setFont(new java.awt.Font("Verdana", 0, 14));
-        btEnviar.setText("Enviar");
+        btEnviar.setText("Enviar mensaje (elija el usuario)");
         btEnviar.addActionListener(evt -> btEnviarActionPerformed(evt));
         getContentPane().add(btEnviar);
         btEnviar.setBounds(327, 160, 120, 27);
@@ -83,7 +83,7 @@ public class cliente extends javax.swing.JFrame {
         clientListScrollPane.setBounds(30, 330, 180, 100);
         getContentPane().add(clientListScrollPane);
 
-        JButton sendToClientButton = new JButton("Enviar a Cliente Seleccionado");
+        JButton sendToClientButton = new JButton("Enviar archivo (elija el usuario)");
         sendToClientButton.setBounds(220, 330, 220, 40);
         sendToClientButton.addActionListener(evt -> enviarArchivoACliente());
         getContentPane().add(sendToClientButton);
@@ -122,7 +122,6 @@ private void enviarMensaje() {
     public static void main(String args[]) {
         java.awt.EventQueue.invokeLater(() -> new cliente().setVisible(true));
     }
-
 private void conectar() {
     clientName = JOptionPane.showInputDialog(this, "Ingrese su nombre:");
 
@@ -135,13 +134,14 @@ private void conectar() {
         while (true) {
             try {
                 if (socket == null || socket.isClosed()) {
-                    socket = new Socket("localhost", PORT);
+                    socket = new Socket("localhost", PORT);  // Intentar conectarse al servidor
                     out = new PrintWriter(socket.getOutputStream(), true);
                     in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-                    out.println(clientName);
+                    out.println(clientName);  // Enviar el nombre del cliente al servidor
 
                     mensajesTxt.append("Conectado al servidor como " + clientName + "\n");
 
+                    // Iniciar un hilo para escuchar mensajes del servidor
                     new Thread(() -> {
                         String fromServer;
                         try {
@@ -150,6 +150,11 @@ private void conectar() {
                                     updateClientList(fromServer);
                                 } else if (fromServer.startsWith("RECEIVE_FILE:")) {
                                     recibirArchivo(fromServer);
+                                } else if (fromServer.startsWith("MSG_FROM:")) {
+                                    String[] parts = fromServer.split(":", 3);
+                                    String sender = parts[1];
+                                    String message = parts[2];
+                                    mensajesTxt.append(sender + ": " + message + "\n");
                                 } else {
                                     mensajesTxt.append("Servidor: " + fromServer + "\n");
                                 }
@@ -157,19 +162,19 @@ private void conectar() {
                         } catch (IOException ex) {
                             mensajesTxt.append("Desconectado del servidor. Intentando reconectar...\n");
                             try {
-                                socket.close(); // Asegurarse de cerrar el socket para la reconexión
+                                socket.close();  // Asegurarse de cerrar el socket
                             } catch (IOException e) {
                                 e.printStackTrace();
                             }
                         }
                     }).start();
 
-                    break;
+                    break;  // Salir del bucle si se establece la conexión
                 }
             } catch (IOException e) {
                 mensajesTxt.append("Error conectando al servidor. Intentando de nuevo en 5 segundos...\n");
                 try {
-                    Thread.sleep(5000);
+                    Thread.sleep(5000);  // Esperar 5 segundos antes de intentar reconectar
                 } catch (InterruptedException ex) {
                     Thread.currentThread().interrupt();
                 }

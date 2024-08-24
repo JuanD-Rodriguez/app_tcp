@@ -96,73 +96,101 @@ public class cliente extends javax.swing.JFrame {
         conectar();
     }
 
-    private void btEnviarActionPerformed(java.awt.event.ActionEvent evt) {
-        enviarMensaje();
+private void btEnviarActionPerformed(java.awt.event.ActionEvent evt) {
+    enviarMensaje();
+}
+
+private void enviarMensaje() {
+    String message = mensajeTxt.getText().trim();
+    String selectedClient = clientList.getSelectedValue(); // Obtener el cliente seleccionado
+
+    if (message.isEmpty()) {
+        JOptionPane.showMessageDialog(this, "El mensaje no puede estar vacío");
+        return;
     }
+
+    if (selectedClient == null) {
+        JOptionPane.showMessageDialog(this, "Seleccione un cliente para enviar el mensaje.");
+        return;
+    }
+
+    out.println("MSG_TO:" + selectedClient + ":" + message); // Enviar mensaje al servidor
+    mensajeTxt.setText(""); // Limpiar la caja de texto después de enviar
+}
+
 
     public static void main(String args[]) {
         java.awt.EventQueue.invokeLater(() -> new cliente().setVisible(true));
     }
 
-    private void conectar() {
-        // Preguntar al usuario por un nombre
-        clientName = JOptionPane.showInputDialog(this, "Ingrese su nombre:");
+private void conectar() {
+    clientName = JOptionPane.showInputDialog(this, "Ingrese su nombre:");
 
-        if (clientName == null || clientName.trim().isEmpty()) {
-            JOptionPane.showMessageDialog(this, "El nombre no puede estar vacío");
-            return;
-        }
+    if (clientName == null || clientName.trim().isEmpty()) {
+        JOptionPane.showMessageDialog(this, "El nombre no puede estar vacío");
+        return;
+    }
 
-        JOptionPane.showMessageDialog(this, "Conectando con servidor");
-        new Thread(() -> {
-            while (true) {
-                try {
-                    if (socket == null || socket.isClosed()) {
-                        socket = new Socket("localhost", PORT); // Asume que el servidor está en localhost y escucha en el puerto 12345
-                        out = new PrintWriter(socket.getOutputStream(), true);
-                        in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-                        out.println(clientName); // Envía el nombre del cliente al servidor
+    new Thread(() -> {
+        while (true) {
+            try {
+                if (socket == null || socket.isClosed()) {
+                    socket = new Socket("localhost", PORT);
+                    out = new PrintWriter(socket.getOutputStream(), true);
+                    in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+                    out.println(clientName);
 
-                        mensajesTxt.append("Conectado al servidor como " + clientName + "\n");
+                    mensajesTxt.append("Conectado al servidor como " + clientName + "\n");
 
-                        new Thread(() -> {
-                            String fromServer;
-                            try {
-                                while ((fromServer = in.readLine()) != null) {
-                                    if (fromServer.startsWith("CLIENT_LIST")) {
-                                        updateClientList(fromServer);
-                                    } else if (fromServer.startsWith("RECEIVE_FILE:")) {
-                                        recibirArchivo(fromServer);
-                                    } else {
-                                        mensajesTxt.append("Servidor: " + fromServer + "\n");
-                                    }
+                    new Thread(() -> {
+                        String fromServer;
+                        try {
+                            while ((fromServer = in.readLine()) != null) {
+                                if (fromServer.startsWith("CLIENT_LIST")) {
+                                    updateClientList(fromServer);
+                                } else if (fromServer.startsWith("RECEIVE_FILE:")) {
+                                    recibirArchivo(fromServer);
+                                } else {
+                                    mensajesTxt.append("Servidor: " + fromServer + "\n");
                                 }
-                            } catch (IOException ex) {
-                                mensajesTxt.append("Desconectado del servidor. Intentando reconectar...\n");
                             }
-                        }).start();
+                        } catch (IOException ex) {
+                            mensajesTxt.append("Desconectado del servidor. Intentando reconectar...\n");
+                            try {
+                                socket.close(); // Asegurarse de cerrar el socket para la reconexión
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            }
+                        }
+                    }).start();
 
-                        break;
-                    }
-                } catch (IOException e) {
-                    mensajesTxt.append("Error conectando al servidor. Intentando de nuevo en 5 segundos...\n");
-                    try {
-                        Thread.sleep(5000);
-                    } catch (InterruptedException ex) {
-                        Thread.currentThread().interrupt();
-                    }
+                    break;
+                }
+            } catch (IOException e) {
+                mensajesTxt.append("Error conectando al servidor. Intentando de nuevo en 5 segundos...\n");
+                try {
+                    Thread.sleep(5000);
+                } catch (InterruptedException ex) {
+                    Thread.currentThread().interrupt();
                 }
             }
-        }).start();
-    }
-
-    private void enviarMensaje() {
-        String message = mensajeTxt.getText();
-        if (message != null && !message.trim().isEmpty()) {
-            out.println(message);
-            mensajeTxt.setText("");
         }
-    }
+    }).start();
+}
+
+private void updateClientList(final String clientListString) {
+    SwingUtilities.invokeLater(() -> {
+        clientListModel.clear();
+        String[] clients = clientListString.split(",");
+        for (int i = 1; i < clients.length; i++) {
+            if (!clientListModel.contains(clients[i])) {
+                clientListModel.addElement(clients[i]);
+            }
+        }
+    });
+}
+
+
 
     private void enviarArchivoACliente() {
         String selectedClient = clientList.getSelectedValue();
@@ -228,15 +256,6 @@ public class cliente extends javax.swing.JFrame {
         mensajesTxt.append("Archivo recibido de " + sender + ": " + fileName + "\n");
     }
 
-    private void updateClientList(final String clientListString) {
-        SwingUtilities.invokeLater(() -> {
-            clientListModel.clear();
-            String[] clients = clientListString.split(",");
-            for (int i = 1; i < clients.length; i++) {
-                clientListModel.addElement(clients[i]);
-            }
-        });
-    }
 
     // Variables declaration - do not modify
     private javax.swing.JButton bConectar;

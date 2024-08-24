@@ -51,7 +51,7 @@ public class servidor extends javax.swing.JFrame {
 
         jLabel1.setFont(new java.awt.Font("Tahoma", 1, 14));
         jLabel1.setForeground(new java.awt.Color(204, 0, 0));
-        jLabel1.setText("SERVIDOR TCP : HOEL");
+        jLabel1.setText("SERVIDOR TCP");
         getContentPane().add(jLabel1);
         jLabel1.setBounds(150, 10, 160, 17);
 

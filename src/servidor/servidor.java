@@ -1,7 +1,3 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package servidor;
 
 import java.io.BufferedReader;
@@ -21,10 +17,6 @@ import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 import javax.swing.SwingUtilities;
 
-/**
- *
- * @author juan.rodriguez
- */
 public class servidor extends javax.swing.JFrame {
     private final int PORT = 12345;
     private ServerSocket serverSocket;
@@ -80,10 +72,6 @@ public class servidor extends javax.swing.JFrame {
         java.awt.EventQueue.invokeLater(() -> new servidor().setVisible(true));
     }
 
-    private void bIniciarActionPerformed(java.awt.event.ActionEvent evt) {
-        iniciarServidor();
-    }
-
     private void iniciarServidor() {
         JOptionPane.showMessageDialog(this, "Iniciando servidor");
         new Thread(() -> {
@@ -93,7 +81,6 @@ public class servidor extends javax.swing.JFrame {
                 while (true) {
                     Socket clientSocket = serverSocket.accept();
                     ClientHandler clientHandler = new ClientHandler(clientSocket);
-                    clients.add(clientHandler);
                     new Thread(clientHandler).start();
                 }
             } catch (IOException ex) {
@@ -124,9 +111,21 @@ public class servidor extends javax.swing.JFrame {
                 this.in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
                 this.out = new PrintWriter(clientSocket.getOutputStream(), true);
                 this.clientName = in.readLine();
+
+                synchronized (clients) {
+                    // Verifica si el cliente ya está en la lista para evitar duplicados
+                    boolean clientExists = clients.stream().anyMatch(c -> c.getClientName().equals(this.clientName));
+                    if (!clientExists) {
+                        clients.add(this);
+                        broadcastClientList();
+                    }
+                }
+
                 SwingUtilities.invokeLater(() -> {
-                    clientListModel.addElement(clientName);
-                    broadcastClientList();
+                    if (!clientListModel.contains(clientName)) {
+                        clientListModel.addElement(clientName);
+                        mensajesTxt.append("Nuevo cliente conectado: " + clientName + "\n");
+                    }
                 });
             } catch (IOException e) {
                 e.printStackTrace();
@@ -136,69 +135,82 @@ public class servidor extends javax.swing.JFrame {
         public String getClientName() {
             return clientName;
         }
-        public void run() {
-            try {
-                String message;
-                while ((message = in.readLine()) != null) {
-                    if (message.startsWith("SEND_FILE:")) {
-                        String[] parts = message.split(":", 3);
-                        final String targetClient = parts[1]; // Marcar como final o asegurar que no se modifique
-                        final String fileName = parts[2]; // Marcar como final o asegurar que no se modifique
-                        final long fileSize = Long.parseLong(in.readLine()); // Marcar como final o asegurar que no se modifique
 
-                        // Mantener la lambda sin modificar
-                        SwingUtilities.invokeLater(() -> 
-                            mensajesTxt.append(clientName + " envió un archivo a " + targetClient + "\n")
-                        );
+            public void run() {
+        try {
+            String message;
+            while ((message = in.readLine()) != null) {
+                if (message.startsWith("SEND_FILE:")) {
+                    // Manejo de archivos
+                    String[] parts = message.split(":", 3);
+                    String targetClient = parts[1];
+                    String fileName = parts[2];
+                    long fileSize = Long.parseLong(in.readLine());
 
-                        // Llamar a la función que maneja el envío del archivo
-                        sendFileToClient(clientName, targetClient, fileName, fileSize, new DataInputStream(clientSocket.getInputStream()));
-                    } else {
-                        final String finalMessage = message; // Variable efectivamente final
-                        SwingUtilities.invokeLater(() -> 
-                            mensajesTxt.append(clientName + ": " + finalMessage + "\n")
-                        );
-                    }
+                    SwingUtilities.invokeLater(() -> 
+                        mensajesTxt.append(clientName + " envió un archivo a " + targetClient + "\n")
+                    );
+
+                    sendFileToClient(clientName, targetClient, fileName, fileSize, new DataInputStream(clientSocket.getInputStream()));
+                } else if (message.startsWith("MSG_TO:")) {
+                    // Manejo de mensajes
+                    String[] parts = message.split(":", 3);
+                    String targetClient = parts[1];
+                    String msgContent = parts[2];
+
+                    sendMessageToClient(clientName, targetClient, msgContent);
+                } else {
+                    final String finalMessage = message;
+                    SwingUtilities.invokeLater(() -> 
+                        mensajesTxt.append(clientName + ": " + finalMessage + "\n")
+                    );
                 }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally {
+            try {
+                clientSocket.close();
+                synchronized (clients) {
+                    clients.remove(this);
+                    broadcastClientList();
+                }
+                SwingUtilities.invokeLater(() -> {
+                    clientListModel.removeElement(clientName);
+                    mensajesTxt.append("Cliente desconectado: " + clientName + "\n");
+                });
             } catch (IOException e) {
                 e.printStackTrace();
-            } finally {
-                try {
-                    clientSocket.close();
-                    SwingUtilities.invokeLater(() -> {
-                        clientListModel.removeElement(clientName);
-                        broadcastClientList();
-                    });
-                } catch (IOException e) {
-                    e.printStackTrace();
+            }
+        }
+    }
+
+    private void sendMessageToClient(String sender, String targetClientName, String message) {
+        for (ClientHandler client : clients) {
+            if (client.getClientName().equals(targetClientName)) {
+                client.out.println("MSG_FROM:" + sender + ":" + message);
+                break;
+            }
+        }
+    }
+
+        private void broadcastClientList() {
+            StringBuilder clientListString = new StringBuilder("CLIENT_LIST");
+            synchronized (clients) {
+                for (ClientHandler client : clients) {
+                    clientListString.append(",").append(client.getClientName());
+                }
+            }
+            
+            synchronized (clients) {
+                for (ClientHandler client : clients) {
+                    client.out.println(clientListString.toString());
                 }
             }
         }
 
         private void sendFile(String sender, String fileName, long fileSize, DataInputStream dis) {
-            try {
-                out.println("RECEIVE_FILE:" + sender + ":" + fileName + ":" + fileSize);
-                OutputStream os = clientSocket.getOutputStream(); // Usar OutputStream para escribir bytes
-                byte[] buffer = new byte[4096];
-                int bytesRead;
-                while (fileSize > 0 && (bytesRead = dis.read(buffer, 0, (int) Math.min(buffer.length, fileSize))) != -1) {
-                    os.write(buffer, 0, bytesRead); // Escribir los bytes en el OutputStream
-                    fileSize -= bytesRead;
-                }
-                os.flush();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-
-        private void broadcastClientList() {
-            StringBuilder clientListString = new StringBuilder("CLIENT_LIST");
-            for (int i = 0; i < clientListModel.size(); i++) {
-                clientListString.append(",").append(clientListModel.getElementAt(i));
-            }
-            for (ClientHandler client : clients) {
-                client.out.println(clientListString.toString());
-            }
+            throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
         }
     }
 

@@ -119,6 +119,7 @@ public class cliente extends javax.swing.JFrame {
                 try {
                     if (socket == null || socket.isClosed()) {
                         socket = new Socket("localhost", PORT); // Asume que el servidor está en localhost y escucha en el puerto 12345
+                        // para conectarme a otro servidor en una IP diferente, simplemente cambiar "localhost" por la dirección IP del servidor:
                         out = new PrintWriter(socket.getOutputStream(), true);
                         in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
                         out.println(clientName); // Envía el nombre del cliente al servidor
